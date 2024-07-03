@@ -1,6 +1,6 @@
 import { BaseModel } from "../base/model";
 import { z } from "zod";
-import { db } from "../setup";
+import { db, logger } from "../setup";
 
 const userValidationSchema = z.object({
   id: z.number().optional(),
@@ -25,11 +25,13 @@ class User extends BaseModel<UserDataType> {
 
 async function main() {
   const user = await User.create({
-    username: "Karan4",
-    email: "karan.chettri4@tpv-tech.com",
+    username: "Karan5",
+    email: "karan.chettri5@tpv-tech.com",
     password: "new_password",
   });
-  console.log(user.serialize());
+  logger.debug(`User: ${user}`);
+  logger.debug(`User data: ${user.data}`);
+  logger.debug(user);
+  logger.debug(user.serialize());
 }
-db.initialize();
 main().then(() => db.destroy());

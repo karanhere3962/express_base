@@ -31,8 +31,10 @@ export class BaseModel<T extends Record<string, any>> {
     data: D
   ): Promise<C> {
     const validatedData = this.validationSchema.parse(data);
-    await db(this.getTenisedTableName()).insert(validatedData);
-    return new this(validatedData);
+    const createdData: D = (
+      await db(this.getTenisedTableName()).insert(validatedData, "*")
+    )[0];
+    return new this(createdData);
   }
 
   static async bulkCreate<
@@ -47,8 +49,11 @@ export class BaseModel<T extends Record<string, any>> {
     data: D[]
   ): Promise<C[]> {
     const validatedData: D[] = z.array(this.validationSchema).parse(data);
-    await db(this.getTenisedTableName()).insert(validatedData);
-    return validatedData.map((element) => new this(element));
+    const insertedData: D[] = await db(this.getTenisedTableName()).insert(
+      validatedData,
+      "*"
+    );
+    return insertedData.map((element) => new this(element));
   }
 
   getSerializationData<
