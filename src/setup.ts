@@ -31,7 +31,9 @@ export const DB_PORT = parseInt(process.env.DB_PORT || "5432");
 
 // Knex Config
 
-export const connectionConfig: Knex.PgConnectionConfig = {
+export const knexClient = process.env.KNEX_CLIENT || "pg";
+
+export const pgConnectionConfig: Knex.PgConnectionConfig = {
   host: DB_HOST,
   database: DB_NAME,
   user: DB_USER,
@@ -39,13 +41,7 @@ export const connectionConfig: Knex.PgConnectionConfig = {
   port: DB_PORT,
 };
 
-export const commonConfig: Knex.Config = {
-  client: "pg",
-  connection: connectionConfig,
-  pool: {
-    min: 2,
-    max: 10,
-  },
+export const commonConfig = {
   migrations: {
     tableName: "knex_migrations",
     directory: path.resolve(base_dir, "src", "database", "migrations"),
@@ -55,11 +51,32 @@ export const commonConfig: Knex.Config = {
   },
 };
 
-export const knexConfig = {
-  [stage]: commonConfig,
+export const commonPGConfig: Knex.Config = {
+  client: "pg",
+  connection: pgConnectionConfig,
+  pool: {
+    min: 2,
+    max: 10,
+  },
+  ...commonConfig,
 };
 
-export const db = knex(commonConfig);
+export const commonSQLite3Config = {
+  client: "sqlite3",
+  connection: {
+    filename: path.resolve(base_dir, "src", "localScripts", "dev.sqlite3"), // Path to your SQLite database file
+  },
+  useNullAsDefault: true,
+  ...commonConfig,
+};
+
+const config = knexClient === "pg" ? commonPGConfig : commonSQLite3Config;
+
+export const knexConfig = {
+  [stage]: config,
+};
+
+export const db = knex(config);
 
 // Logger
 export const logger = createLogger({
