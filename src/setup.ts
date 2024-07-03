@@ -2,6 +2,8 @@ import path from "path";
 import dotenv from "dotenv";
 import { AsyncLocalStorage } from "async_hooks";
 import type { Knex } from "knex";
+import knex from "knex";
+import createLogger from "./logger";
 
 dotenv.config();
 
@@ -29,27 +31,40 @@ export const DB_PORT = parseInt(process.env.DB_PORT || "5432");
 
 // Knex Config
 
-const connection: Knex.PgConnectionConfig = {
+export const connectionConfig: Knex.PgConnectionConfig = {
   host: DB_HOST,
   database: DB_NAME,
   user: DB_USER,
   password: DB_PASSWORD,
   port: DB_PORT,
 };
-export const knexConfig = {
-  [stage]: {
-    client: "pg",
-    connection: connection,
-    pool: {
-      min: 2,
-      max: 10,
-    },
-    migrations: {
-      tableName: "knex_migrations",
-      directory: path.resolve(base_dir, "src", "database", "migrations"),
-    },
-    seeds: {
-      directory: path.resolve(base_dir, "src", "database", "seeds"),
-    },
+
+export const commonConfig: Knex.Config = {
+  client: "pg",
+  connection: connectionConfig,
+  pool: {
+    min: 2,
+    max: 10,
+  },
+  migrations: {
+    tableName: "knex_migrations",
+    directory: path.resolve(base_dir, "src", "database", "migrations"),
+  },
+  seeds: {
+    directory: path.resolve(base_dir, "src", "database", "seeds"),
   },
 };
+
+export const knexConfig = {
+  [stage]: commonConfig,
+};
+
+export const db = knex(commonConfig);
+
+// Logger
+export const logger = createLogger({
+  stage,
+  loggingDir: "logs",
+  retentionPeriod: "45d",
+  logLevel: stage === "development" ? "debug" : "info",
+});
