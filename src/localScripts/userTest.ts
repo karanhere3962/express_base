@@ -1,6 +1,7 @@
 import { BaseModel } from "../base/model";
 import { z } from "zod";
 import { db, logger } from "../setup";
+import type { QueryBuilder } from "knex";
 
 const userValidationSchema = z.object({
   id: z.number().optional(),
@@ -29,9 +30,10 @@ async function main() {
     email: "karan.chettri5@tpv-tech.com",
     password: "new_password",
   });
-  logger.debug(`User: ${user}`);
-  logger.debug(`User data: ${user.data}`);
-  logger.debug(user);
-  logger.debug(user.serialize());
+  //   logger.debug(`User: ${user}`);
+  //   logger.debug(`User data: ${user.data}`);
+  //   logger.debug(user);
+  //   logger.debug(user.serialize());
+  logger.debug(await User.select().where("id", 3));
 }
 main().then(() => db.destroy());

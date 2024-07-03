@@ -1,5 +1,6 @@
 import { ZodSchema, z } from "zod";
 import { db, knexClient, logger } from "../setup";
+import type { Knex } from "knex";
 
 export class BaseModel<T extends Record<string, any>> {
   static validationSchema: ZodSchema<any>;
@@ -54,6 +55,17 @@ export class BaseModel<T extends Record<string, any>> {
       "*"
     );
     return insertedData.map((element) => new this(element));
+  }
+
+  static select<D extends Record<string, any>, C extends BaseModel<D>>(
+    this: {
+      new (initValues: D): C;
+      validationSchema: ZodSchema<D>;
+      getTenisedTableName: () => string;
+    },
+    selectableFields: any = undefined
+  ): Knex.QueryBuilder {
+    return db.select(selectableFields || "*").from(this.getTenisedTableName());
   }
 
   getSerializationData<
