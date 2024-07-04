@@ -57,15 +57,48 @@ export class BaseModel<T extends Record<string, any>> {
     return insertedData.map((element) => new this(element));
   }
 
-  static select<D extends Record<string, any>, C extends BaseModel<D>>(
+  static kSelect<D extends Record<string, any>, C extends BaseModel<D>>(
     this: {
       new (initValues: D): C;
       validationSchema: ZodSchema<D>;
       getTenisedTableName: () => string;
     },
+    condition: Record<string, any> = {},
     selectableFields: any = undefined
   ): Knex.QueryBuilder {
-    return db.select(selectableFields || "*").from(this.getTenisedTableName());
+    let query = db
+      .select(selectableFields || "*")
+      .from(this.getTenisedTableName());
+    Object.entries(condition).forEach(([key, value]) => {
+      query = query.where(key, value);
+    });
+    return query;
+  }
+
+  static async select<D extends Record<string, any>, C extends BaseModel<D>>(
+    this: {
+      new (initValues: D): C;
+      kSelect: (condition: Record<string, any>) => Knex.QueryBuilder;
+    },
+    condition: Record<string, any> = {}
+  ): Promise<C[]> {
+    const data: Record<string, any>[] = await this.kSelect(condition);
+    return data.map((element) => new this(element as D));
+  }
+
+  static async get<D extends Record<string, any>, C extends BaseModel<D>>(
+    this: {
+      new (initValues: D): C;
+      validationSchema: ZodSchema<D>;
+      kSelect: (condition: Record<string, any>) => Knex.QueryBuilder;
+    },
+    condition: Record<string, any>
+  ): Promise<C> {
+    const data: D = await this.kSelect(condition).first();
+    if (!data) {
+      throw new Error("No data found for the specified condition.");
+    }
+    return new this(data);
   }
 
   static getSerializationData<
