@@ -68,25 +68,51 @@ export class BaseModel<T extends Record<string, any>> {
     return db.select(selectableFields || "*").from(this.getTenisedTableName());
   }
 
-  getSerializationData<
+  static getSerializationData<
     D extends Record<string, any>,
     C extends BaseModel<D>
-  >(this: {
-    new (initValues: D): C;
-    data: Record<string, any>;
-    serializerFields: string[];
-  }): Record<string, any> {
-    logger.debug(this);
-    return (this.constructor as typeof BaseModel).serializerFields.reduce(
-      (acc: Record<string, any>, key) => {
-        acc[key] = this.data[key];
-        return acc;
-      },
-      {}
-    );
+  >(
+    this: {
+      new (initValues: D): C;
+      serializerFields: string[];
+    },
+    data: D
+  ): Record<string, any> {
+    return this.serializerFields.reduce((acc: Record<string, any>, key) => {
+      acc[key] = data[key];
+      return acc;
+    }, {});
   }
 
-  serialize(this: { getSerializationData: () => Record<string, any> }): string {
-    return JSON.stringify(this.getSerializationData());
+  static serializeData(
+    data: Record<string, any> | Record<string, any>[]
+  ): string {
+    if (Array.isArray(data)) {
+      return JSON.stringify(
+        data.map((element) => this.getSerializationData(element))
+      );
+    }
+    return JSON.stringify(this.getSerializationData(data));
+  }
+
+  static serialize<D extends Record<string, any>, C extends BaseModel<D>>(
+    data: C | C[]
+  ): string {
+    if (Array.isArray(data)) {
+      return JSON.stringify(
+        data.map((element) => this.getSerializationData(element.data))
+      );
+    }
+    return data.serialize();
+  }
+
+  serialize<D extends Record<string, any>, C extends BaseModel<D>>(
+    this: C & {
+      data: Record<string, any>;
+    }
+  ): string {
+    return JSON.stringify(
+      (this.constructor as typeof BaseModel).getSerializationData(this.data)
+    );
   }
 }

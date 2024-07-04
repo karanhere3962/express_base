@@ -25,15 +25,21 @@ class User extends BaseModel<UserDataType> {
 }
 
 async function main() {
-  const user = await User.create({
-    username: "Karan5",
-    email: "karan.chettri5@tpv-tech.com",
-    password: "new_password",
-  });
+  // const user = await User.create({
+  //   username: "Karan5",
+  //   email: "karan.chettri5@tpv-tech.com",
+  //   password: "new_password",
+  // });
   //   logger.debug(`User: ${user}`);
   //   logger.debug(`User data: ${user.data}`);
   //   logger.debug(user);
   //   logger.debug(user.serialize());
+  const user = new User({
+    username: "Karan5",
+    email: "karan.chettri5@tpv-tech.com",
+    password: "new_password",
+  });
+  logger.debug(user.serialize());
   logger.debug(await User.select().where("id", 3));
 }
 main().then(() => db.destroy());
