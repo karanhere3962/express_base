@@ -17,6 +17,7 @@ export class BaseModel<T extends Record<string, any>> {
   static validationSchema: ZodSchema<any>;
   static tableName: string;
   static serializerFields: string[];
+  static pkKey: string;
 
   data: T;
 
