@@ -2,6 +2,17 @@ import { ZodSchema, z } from "zod";
 import { db, knexClient, logger } from "../setup";
 import type { Knex } from "knex";
 
+export interface BaseModelConstructor<D extends Record<string, any>> {
+  new (initValues: D): BaseModel<D>;
+  validationSchema: ZodSchema<D>;
+  getTenisedTableName: () => string;
+  serializerFields: string[];
+  kSelect: (
+    condition: Record<string, any>,
+    selectableFields?: any
+  ) => Knex.QueryBuilder;
+}
+
 export class BaseModel<T extends Record<string, any>> {
   static validationSchema: ZodSchema<any>;
   static tableName: string;
@@ -23,12 +34,13 @@ export class BaseModel<T extends Record<string, any>> {
       : `${this.getTenantSchema()}.${this.tableName}`;
   }
 
-  static async create<D extends Record<string, any>, C extends BaseModel<D>>(
+  static async create<
+    D extends Record<string, any>,
+    C extends BaseModelConstructor<D>
+  >(
     this: {
       new (initValues: D): C;
-      validationSchema: ZodSchema<D>;
-      getTenisedTableName: () => string;
-    },
+    } & BaseModelConstructor<D>,
     data: D
   ): Promise<C> {
     const validatedData = this.validationSchema.parse(data);
@@ -44,9 +56,7 @@ export class BaseModel<T extends Record<string, any>> {
   >(
     this: {
       new (initValues: D): C;
-      validationSchema: ZodSchema<D>;
-      getTenisedTableName: () => string;
-    },
+    } & BaseModelConstructor<D>,
     data: D[]
   ): Promise<C[]> {
     const validatedData: D[] = z.array(this.validationSchema).parse(data);
@@ -57,12 +67,7 @@ export class BaseModel<T extends Record<string, any>> {
     return insertedData.map((element) => new this(element));
   }
 
-  static kSelect<D extends Record<string, any>, C extends BaseModel<D>>(
-    this: {
-      new (initValues: D): C;
-      validationSchema: ZodSchema<D>;
-      getTenisedTableName: () => string;
-    },
+  static kSelect(
     condition: Record<string, any> = {},
     selectableFields: any = undefined
   ): Knex.QueryBuilder {
@@ -78,8 +83,7 @@ export class BaseModel<T extends Record<string, any>> {
   static async select<D extends Record<string, any>, C extends BaseModel<D>>(
     this: {
       new (initValues: D): C;
-      kSelect: (condition: Record<string, any>) => Knex.QueryBuilder;
-    },
+    } & BaseModelConstructor<D>,
     condition: Record<string, any> = {}
   ): Promise<C[]> {
     const data: Record<string, any>[] = await this.kSelect(condition);
@@ -89,9 +93,7 @@ export class BaseModel<T extends Record<string, any>> {
   static async get<D extends Record<string, any>, C extends BaseModel<D>>(
     this: {
       new (initValues: D): C;
-      validationSchema: ZodSchema<D>;
-      kSelect: (condition: Record<string, any>) => Knex.QueryBuilder;
-    },
+    } & BaseModelConstructor<D>,
     condition: Record<string, any>
   ): Promise<C> {
     const data: D = await this.kSelect(condition).first();
@@ -101,16 +103,7 @@ export class BaseModel<T extends Record<string, any>> {
     return new this(data);
   }
 
-  static getSerializationData<
-    D extends Record<string, any>,
-    C extends BaseModel<D>
-  >(
-    this: {
-      new (initValues: D): C;
-      serializerFields: string[];
-    },
-    data: D
-  ): Record<string, any> {
+  static getSerializationData(data: Record<string, any>): Record<string, any> {
     return this.serializerFields.reduce((acc: Record<string, any>, key) => {
       acc[key] = data[key];
       return acc;
@@ -128,7 +121,7 @@ export class BaseModel<T extends Record<string, any>> {
     return JSON.stringify(this.getSerializationData(data));
   }
 
-  static serialize<D extends Record<string, any>, C extends BaseModel<D>>(
+  static serialize<C extends BaseModel<Record<string, any>>>(
     data: C | C[]
   ): string {
     if (Array.isArray(data)) {
@@ -139,11 +132,7 @@ export class BaseModel<T extends Record<string, any>> {
     return data.serialize();
   }
 
-  serialize<D extends Record<string, any>, C extends BaseModel<D>>(
-    this: C & {
-      data: Record<string, any>;
-    }
-  ): string {
+  serialize(): string {
     return JSON.stringify(
       (this.constructor as typeof BaseModel).getSerializationData(this.data)
     );

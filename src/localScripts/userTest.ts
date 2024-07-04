@@ -41,8 +41,8 @@ async function main() {
   });
   logger.debug(user.serialize());
   // logger.debug(new User(await User.kSelect().where("id", 3).first()));
-
-  logger.debug(await User.select({ id: 3 }));
-  logger.debug(await User.get({ id: 3 }));
+  logger.debug(await User.select());
+  // logger.debug(await User.select({ id: 3 }));
+  // logger.debug(await User.get({ id: 3 }));
 }
 main().then(() => db.destroy());
