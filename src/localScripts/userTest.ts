@@ -22,6 +22,10 @@ class User extends BaseModel<UserDataType> {
     "created_at",
     "updated_at",
   ];
+
+  printData() {
+    logger.debug(this.data);
+  }
 }
 
 async function main() {
@@ -39,10 +43,11 @@ async function main() {
     email: "karan.chettri5@tpv-tech.com",
     password: "new_password",
   });
-  logger.debug(user.serialize());
-  // logger.debug(new User(await User.kSelect().where("id", 3).first()));
-  logger.debug(await User.select());
+  // logger.debug(user.serialize());
+  // // logger.debug(new User(await User.kSelect().where("id", 3).first()));
+  // logger.debug(await User.select());
   // logger.debug(await User.select({ id: 3 }));
   // logger.debug(await User.get({ id: 3 }));
+  user.printData();
 }
 main().then(() => db.destroy());
