@@ -19,10 +19,9 @@ dotenv.config({
 });
 
 // AsyncLocalStorage
-export const asyncLocalStorage = new AsyncLocalStorage();
+export const asyncLocalStorage = new AsyncLocalStorage<Map<string, any>>();
 
 // Database
-
 export const DB_HOST = process.env.DB_HOST as string;
 export const DB_NAME = process.env.DB_NAME as string;
 export const DB_USER = process.env.DB_USER as string;
@@ -30,7 +29,6 @@ export const DB_PASSWORD = process.env.DB_PASSWORD as string;
 export const DB_PORT = parseInt(process.env.DB_PORT || "5432");
 
 // Knex Config
-
 export const knexClient = process.env.KNEX_CLIENT || "pg";
 
 export const pgConnectionConfig: Knex.PgConnectionConfig = {
@@ -77,6 +75,7 @@ export const knexConfig = {
 };
 
 export const db = knex(config);
+export const getKnex = () => db;
 
 // Logger
 export const logger = createLogger({
