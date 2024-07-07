@@ -28,32 +28,36 @@ function createLogger({
     debug: 4,
   };
 
-  winston.addColors({
-    error: "red",
-    warn: "yellow",
-    info: "green",
-    http: "magenta",
-    debug: "white",
-  });
+  // Base log format
+  const logFormat = winston.format.printf(
+    (info: LogInfo) =>
+      `${info.timestamp || "Unknown Time"} ${info.level || "Unknown Level"}: ${
+        info.message || "No message"
+      }`
+  );
+
+  // Format for console that includes colorization
+  const consoleFormat = winston.format.combine(
+    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
+    winston.format.colorize({ all: true }),
+    logFormat
+  );
+
+  // Format for files that excludes colorization
+  const fileFormat = winston.format.combine(
+    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
+    logFormat
+  );
 
   const levelFunction = (): string => {
     const isDevelopment = stage === "development";
     return isDevelopment ? "debug" : logLevel;
   };
 
-  const format = winston.format.combine(
-    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
-    winston.format.colorize({ all: true }),
-    winston.format.printf(
-      (info: LogInfo) =>
-        `${info.timestamp || "Unknown Time"} ${
-          info.level || "Unknown Level"
-        }: ${info.message || "No message"}`
-    )
-  );
-
   const transports: winston.transport[] = [
-    new winston.transports.Console(),
+    new winston.transports.Console({
+      format: consoleFormat,
+    }),
     new DailyRotateFile({
       filename: `${loggingDir}/error-%DATE%.log`,
       datePattern: "YYYY-MM-DD",
@@ -61,6 +65,7 @@ function createLogger({
       maxSize: "20m",
       maxFiles: retentionPeriod,
       level: "error",
+      format: fileFormat,
     }),
     new DailyRotateFile({
       filename: `${loggingDir}/all-%DATE%.log`,
@@ -68,13 +73,14 @@ function createLogger({
       zippedArchive: true,
       maxSize: "20m",
       maxFiles: retentionPeriod,
+      format: fileFormat,
     }),
   ];
 
   const logger = winston.createLogger({
     level: levelFunction(),
     levels,
-    format,
+    format: winston.format.combine(), // Default format not used directly
     transports,
   });
 

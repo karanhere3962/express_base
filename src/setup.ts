@@ -76,6 +76,7 @@ export const knexConfig = {
 
 export const db = knex(config);
 export const getKnex = () => db;
+export const getTenantSchemaNames = () => ["test_tenant"];
 
 // Logger
 export const logger = createLogger({

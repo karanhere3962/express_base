@@ -8,7 +8,8 @@
     "build": "npx tsc",
     "start": "NODE_ENV=production node dist/src/app.js",
     "dev": "NODE_ENV=development nodemon src/app.ts",
-    "staging": "NODE_ENV=staging node dist/app.ts"
+    "staging": "NODE_ENV=staging node dist/app.ts",
+    "migration": "npx ts-node src/scripts/knexMigrate.ts"
   },
   "author": "",
   "license": "ISC",
