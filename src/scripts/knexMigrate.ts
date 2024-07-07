@@ -72,20 +72,22 @@ const argv = yargs(hideBin(process.argv))
 const getMigrationTemplate = (
   schema: string | undefined = undefined
 ) => `import { Knex } from 'knex';
+import { logger } from '../../../setup';
 
-const tenantSchema = "${
-  schema ? schema : process.env.TENANT_SCHEMA || "public"
-}";
+const tenantSchema = ${
+  schema ? '"' + schema + '"' : 'process.env.TENANT_SCHEMA || "public"'
+};
 logger.debug("Running migration in schema:", tenantSchema)
 
 exports.up = async (knex: Knex) => {
 // TODO: write migration here
-knex.schema.withSchema(tenantSchema)
+await knex.raw('CREATE SCHEMA IF NOT EXISTS ' + tenantSchema);
+return knex.schema.withSchema(tenantSchema)
 };
 
 exports.down = async (knex: Knex) => {
 // TODO: write rollback here
-knex.schema.withSchema(tenantSchema)
+return knex.schema.withSchema(tenantSchema)
 };`;
 export function generateMigrationScript({
   name,
@@ -144,8 +146,13 @@ export function runMigrationFor(
   logger.debug("Migration table:", knexMigrationTable);
   logger.debug("Type:", type);
 
+  if (!fs.existsSync(migrationDirectory)) {
+    fs.mkdirSync(migrationDirectory, { recursive: true });
+    logger.debug(`Directory created: ${migrationDirectory}`);
+  }
+
   execSync(
-    `npx knex migrate:latest --environment ${env} --directory ${migrationDirectory} --tableName ${knexMigrationTable}`,
+    `npx knex migrate:latest --env ${env} --migrations-directory ${migrationDirectory} --migrations-table-name ${knexMigrationTable}`,
     {
       env: {
         ...process.env,
