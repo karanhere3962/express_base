@@ -1,6 +1,7 @@
 import { ZodSchema, z } from "zod";
 import { getKnex, knexClient, logger, asyncLocalStorage } from "../setup";
 import type { Knex } from "knex";
+import { validateAndSanitize } from "../utils/validator";
 
 // To Add: static validate method which will make the validation package agnostic
 
@@ -63,7 +64,7 @@ export class BaseModel<T extends Record<string, any>> {
     },
     data: D
   ): Promise<C> {
-    const validatedData = this.validationSchema.parse(data);
+    const validatedData = validateAndSanitize(data, this.validationSchema);
     const createdData: D = (
       await getKnex()(this.getTenisedTableName()).insert(validatedData, "*")
     )[0];
@@ -79,7 +80,10 @@ export class BaseModel<T extends Record<string, any>> {
     } & BaseModelConstructor<D>,
     data: D[]
   ): Promise<C[]> {
-    const validatedData: D[] = z.array(this.validationSchema).parse(data);
+    const validatedData: D[] = validateAndSanitize(
+      data,
+      z.array(this.validationSchema)
+    );
     const insertedData: D[] = await getKnex()(
       this.getTenisedTableName()
     ).insert(validatedData, "*");
@@ -134,7 +138,7 @@ export class BaseModel<T extends Record<string, any>> {
       throw new Error("Primary key cannot be updated.");
     }
     const updateValidationSchema = instanceClass.getUpdateValidationSchema();
-    const validatedData = updateValidationSchema.parse(data);
+    const validatedData = validateAndSanitize(data, updateValidationSchema);
     const updatedData: D = (
       await getKnex()((this.constructor as C).getTenisedTableName())
         .where({ [instanceClass.pkKey]: this.data[instanceClass.pkKey] })
@@ -158,7 +162,10 @@ export class BaseModel<T extends Record<string, any>> {
       condition = { [this.pkKey]: condition };
     }
     const updateValidationSchema = this.getUpdateValidationSchema();
-    const validatedData = updateValidationSchema.parse(updateData);
+    const validatedData = validateAndSanitize(
+      updateData,
+      updateValidationSchema
+    );
     const data: D[] = await getKnex()(this.getTenisedTableName())
       .where(condition)
       .update(validatedData, "*");

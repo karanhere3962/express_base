@@ -68,12 +68,12 @@ async function main() {
     email: "karan.chettri5@tpv-tech.com",
     password: "new_password",
   });
-  const tenantUser2 = await TenantUser.create({
-    username: "Karan11",
-    email: "karan.chettri5@tpv-tech.com",
-    password: "new_password",
-  });
-  tenantUser2.printData();
+  // const tenantUser2 = await TenantUser.create({
+  //   username: "Karan11",
+  //   email: "karan.chettri5@tpv-tech.com",
+  //   password: "new_password",
+  // });
+  // tenantUser2.printData();
   tenantUser.printData();
 }
 asyncLocalStorage.run(new Map(), async () => {

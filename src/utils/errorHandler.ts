@@ -1,12 +1,12 @@
-import { Request, Response, NextFunction, ErrorRequestHandler } from "express";
-import Joi from "joi";
+import { ErrorRequestHandler } from "express";
+import { ZodError } from "zod";
 
-export const joiErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
-  if (err && err.isJoi) {
-    // Handle Joi errors
+export const zodErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  if (err instanceof ZodError) {
+    // Handle Zod validation errors
     return res.status(400).json({
       message: "Validation error",
-      details: err.details.map((e: Joi.ValidationErrorItem) => ({
+      details: err.errors.map((e) => ({
         message: e.message,
         path: e.path.join("."),
       })),

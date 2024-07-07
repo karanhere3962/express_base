@@ -81,7 +81,6 @@ logger.debug("Running migration in schema:", tenantSchema)
 
 exports.up = async (knex: Knex) => {
 // TODO: write migration here
-await knex.raw('CREATE SCHEMA IF NOT EXISTS ' + tenantSchema);
 return knex.schema.withSchema(tenantSchema)
 };
 
