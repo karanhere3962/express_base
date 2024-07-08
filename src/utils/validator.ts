@@ -17,13 +17,19 @@ export const sanitizeInput = (value: any): any => {
 };
 
 // Function to validate then sanitize data
-export const validateAndSanitize = <T>(data: any, schema: ZodSchema<T>): T => {
+export const validateAndSanitize = <T>(
+  data: any,
+  schema: ZodSchema<T>,
+  sanitizeForXSS: boolean = false
+): T => {
   // First validate the data using Zod
-  const validationResult = schema.parse(data);
+  const validatedData = schema.parse(data);
 
   // Then sanitize the validated data to prevent XSS
-  const sanitizedData = sanitizeInput(validationResult);
+  if (sanitizeForXSS) {
+    return sanitizeInput(validatedData);
+  }
 
   // Return the sanitized data
-  return sanitizedData;
+  return validatedData;
 };
