@@ -6,32 +6,7 @@ import { validateAndSanitize } from "../utils/validator";
 // To Add: static validate method which will make the validation package agnostic
 
 export interface BaseModelConstructor<D extends Record<string, any>> {
-  // new (initValues: D): void;
-  // validationSchema: ZodSchema<D>;
-  // updateValidationSchema: ZodSchema<Record<string, any>>;
-  // serializerFields: string[];
-  // tableName: string;
-  // pkKey: string;
   data: D;
-  // getTenisedTableName: () => string;
-  // kSelect: (
-  //   condition: Record<string, any>,
-  //   selectableFields?: any
-  // ) => Knex.QueryBuilder;
-  // getUpdateValidationSchema: () => ZodSchema<Record<string, any>>;
-  // create: <C extends BaseModel<D>>(data: D) => Promise<C>;
-  // bulkCreate: <C extends BaseModel<D>>(data: D[]) => Promise<C[]>;
-  // get: <C extends new (...args: any[]) => BaseModel<D>>(
-  //   condition: Record<string, any> | PKType
-  // ) => Promise<C>;
-  // update: <C extends BaseModel<D>>(
-  //   condition: Record<string, any> | PKType,
-  //   updateData: Record<string, any>
-  // ) => Promise<C>;
-  // bulkUpdate: <C extends BaseModel<D>>(
-  //   condition: Record<string, any> | PKType,
-  //   updateData: Record<string, any>
-  // ) => Promise<C[]>;
 }
 
 export type PKType = number | string;
@@ -124,7 +99,7 @@ export class BaseModel<T extends Record<string, any>>
     return new this(data);
   }
 
-  async update<D extends Record<string, any>, C extends BaseModel<D>>(data: D) {
+  async update<D extends Record<string, any>>(data: D) {
     const instanceClass = this.constructor as typeof BaseModel;
     if (instanceClass.pkKey in data) {
       throw new Error("Primary key cannot be updated.");
@@ -197,36 +172,68 @@ export class BaseModel<T extends Record<string, any>>
   }
 }
 
-export type Constructor<T> = new (...args: any[]) => T;
-
-export function tenantClassMixin<T extends Constructor<{}>>(baseClass: T) {
-  return class extends baseClass {
-    static asyncLocalStorage = asyncLocalStorage;
-    static tableName: string;
-    static storeSchemaKey: string = "tenantSchema";
-    static get store(): Map<string, any> {
-      const store = this.asyncLocalStorage.getStore();
-      if (!store) {
-        throw new Error("Store not found.");
-      }
-      return store;
+export class TenantBaseModel<
+  D extends Record<string, any>
+> extends BaseModel<D> {
+  static asyncLocalStorage = asyncLocalStorage;
+  static tableName: string;
+  static storeSchemaKey: string = "tenantSchema";
+  static get store(): Map<string, any> {
+    const store = this.asyncLocalStorage.getStore();
+    if (!store) {
+      throw new Error("Store not found.");
     }
+    return store;
+  }
 
-    static getTenantSchema(): string {
-      // Not adding default value to the tenantSchema key to avoid accidental data leakage. Using TenantModelMixin and setting tenantSchema is mandatory.
-      const schema = this.store.get(this.storeSchemaKey);
-      if (!schema) {
-        throw new Error(
-          "Tenant schema not found. Set 'tenantSchema' in the store."
-        );
-      }
-      return schema;
+  static getTenantSchema(): string {
+    // Not adding default value to the tenantSchema key to avoid accidental data leakage. Using TenantModelMixin and setting tenantSchema is mandatory.
+    const schema = this.store.get(this.storeSchemaKey);
+    if (!schema) {
+      throw new Error(
+        "Tenant schema not found. Set 'tenantSchema' in the store."
+      );
     }
+    return schema;
+  }
 
-    static getTenisedTableName(): string {
-      return knexClient == "sqlite3"
-        ? this.tableName
-        : `${this.getTenantSchema()}.${this.tableName}`;
-    }
-  };
+  static getTenisedTableName(): string {
+    return knexClient == "sqlite3"
+      ? this.tableName
+      : `${this.getTenantSchema()}.${this.tableName}`;
+  }
 }
+
+// export type Constructor<T> = new (...args: any[]) => T;
+
+// export function tenantClassMixin<T extends Constructor<{}>>(baseClass: T) {
+//   return class extends baseClass {
+//     static asyncLocalStorage = asyncLocalStorage;
+//     static tableName: string;
+//     static storeSchemaKey: string = "tenantSchema";
+//     static get store(): Map<string, any> {
+//       const store = this.asyncLocalStorage.getStore();
+//       if (!store) {
+//         throw new Error("Store not found.");
+//       }
+//       return store;
+//     }
+
+//     static getTenantSchema(): string {
+//       // Not adding default value to the tenantSchema key to avoid accidental data leakage. Using TenantModelMixin and setting tenantSchema is mandatory.
+//       const schema = this.store.get(this.storeSchemaKey);
+//       if (!schema) {
+//         throw new Error(
+//           "Tenant schema not found. Set 'tenantSchema' in the store."
+//         );
+//       }
+//       return schema;
+//     }
+
+//     static getTenisedTableName(): string {
+//       return knexClient == "sqlite3"
+//         ? this.tableName
+//         : `${this.getTenantSchema()}.${this.tableName}`;
+//     }
+//   };
+// }

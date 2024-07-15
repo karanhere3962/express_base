@@ -1,50 +1,48 @@
-import {
-  BaseModel,
-  tenantClassMixin,
-  Constructor,
-  BaseModelConstructor,
-} from "../../base/model";
+import { BaseModel, TenantBaseModel } from "../../base/model";
 import { z } from "zod";
 import { UserSchema, TenantUserSchema } from "./schemas";
+import { applyMixins } from "../../utils";
 
 export type UserType = z.infer<typeof UserSchema>;
 export type TenantUserType = z.infer<typeof TenantUserSchema>;
 
-export function userClassMixin<
-  U extends Record<string, any>,
-  T extends Constructor<BaseModel<any>>
->(baseClass: T) {
-  return class extends baseClass {
-    static tableName = "users";
-    static pkKey = "id";
-    static serializerFields: string[] = [
-      "id",
-      "name",
-      "email",
-      "display_picture",
-      "user_type",
-      "permissions",
-      "created_at",
-      "updated_at",
-    ];
-    static async authenticateUser<
-      T extends BaseModel<U> & BaseModelConstructor<U>
-    >(this: T, email: string, password: string): Promise<T | null> {
-      const user = await this.get({ email });
-      if (user) {
-        return user;
-      }
-      return null;
-    }
-  };
-}
+// export function userClassMixin<
+//   D extends Record<string, any>,
+//   T extends Constructor<BaseModel<D>>
+// >(baseClass: T) {
+//   return class extends baseClass {
+//     static tableName = "users";
+//     static pkKey = "id";
+//     static serializerFields: string[] = [
+//       "id",
+//       "name",
+//       "email",
+//       "display_picture",
+//       "user_type",
+//       "permissions",
+//       "created_at",
+//       "updated_at",
+//     ];
 
-export class User extends userClassMixin(BaseModel<UserType>) {
+//     static async authenticateUser(email: string, password: string) {
+//       const user = await this.get({ email });
+//       if (!user) {
+//         throw new Error("User not found.");
+//       }
+//       if (user.data.password !== password) {
+//         throw new Error("Invalid password.");
+//       }
+//       return user;
+//     }
+//   };
+// }
+
+export class User extends BaseModel<UserType> {
   static validationSchema = UserSchema;
 }
 
-export class TenantUser extends userClassMixin(
-  tenantClassMixin(BaseModel<TenantUserType>)
-) {
+export class TenantUser extends TenantBaseModel<TenantUserType> {
   static validationSchema = TenantUserSchema;
 }
+
+applyMixins(TenantUser, [User]);
