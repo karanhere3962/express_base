@@ -5,15 +5,33 @@ import { validateAndSanitize } from "../utils/validator";
 
 // To Add: static validate method which will make the validation package agnostic
 
-export interface BaseModelConstructor<D extends Record<string, any>> {
-  data: D;
-}
+export type BaseModelType<D extends Record<string, any>> = {
+  new (initValues: D): BaseModel<D>;
+  validationSchema: ZodSchema<D>;
+  updateValidationSchema: ZodSchema<Record<string, any>>;
+  serializerFields: string[];
+  tableName: string;
+  pkKey: string;
+  getTenisedTableName: () => string;
+  kSelect: (
+    condition: Record<string, any>,
+    selectableFields?: any
+  ) => Knex.QueryBuilder;
+  getUpdateValidationSchema: () => ZodSchema<Record<string, any>>;
+  create: <C extends BaseModel<D>>(data: D) => Promise<C>;
+  bulkCreate: <C extends BaseModel<D>>(data: D[]) => Promise<C[]>;
+  get: <C extends BaseModel<D>>(
+    condition: Record<string, any> | PKType
+  ) => Promise<C | null>;
+  bulkUpdate: <C extends BaseModel<D>>(
+    condition: Record<string, any> | PKType,
+    updateData: Record<string, any>
+  ) => Promise<C[]>;
+};
 
 export type PKType = number | string;
 
-export class BaseModel<T extends Record<string, any>>
-  implements BaseModelConstructor<T>
-{
+export class BaseModel<T extends Record<string, any>> {
   static validationSchema: ZodSchema<any>;
   static updateValidationSchema: ZodSchema<any>;
   static tableName: string;
@@ -47,7 +65,10 @@ export class BaseModel<T extends Record<string, any>>
     );
   }
 
-  static async create<D extends Record<string, any>>(data: D) {
+  static async create<D extends Record<string, any>, T extends BaseModel<D>>(
+    this: (new (data: D) => T) & BaseModelType<D>,
+    data: D
+  ) {
     const validatedData = validateAndSanitize(data, this.validationSchema);
     const createdData: D = (
       await getKnex()(this.getTenisedTableName()).insert(validatedData, "*")
@@ -55,12 +76,15 @@ export class BaseModel<T extends Record<string, any>>
     return new this(createdData);
   }
 
-  static async bulkCreate<T extends Record<string, any>>(data: T[]) {
-    const validatedData: T[] = validateAndSanitize(
+  static async bulkCreate<
+    D extends Record<string, any>,
+    T extends BaseModel<D>
+  >(this: (new (data: D) => T) & BaseModelType<D>, data: D[]) {
+    const validatedData: D[] = validateAndSanitize(
       data,
       z.array(this.validationSchema)
     );
-    const insertedData: T[] = await getKnex()(
+    const insertedData: D[] = await getKnex()(
       this.getTenisedTableName()
     ).insert(validatedData, "*");
     return insertedData.map((element) => new this(element));
@@ -79,14 +103,16 @@ export class BaseModel<T extends Record<string, any>>
     return query;
   }
 
-  static async select<D extends Record<string, any>>(
+  static async select<D extends Record<string, any>, T extends BaseModel<D>>(
+    this: (new (data: D) => T) & BaseModelType<D>,
     condition: Record<string, any> = {}
   ) {
     const data: Record<string, any>[] = await this.kSelect(condition);
     return data.map((element) => new this(element as D));
   }
 
-  static async get<D extends Record<string, any>>(
+  static async get<D extends Record<string, any>, T extends BaseModel<D>>(
+    this: (new (data: D) => T) & BaseModelType<D>,
     condition: Record<string, any> | PKType
   ) {
     if (typeof condition === "number" || typeof condition === "string") {
@@ -94,7 +120,7 @@ export class BaseModel<T extends Record<string, any>>
     }
     const data: D = await this.kSelect(condition).first();
     if (!data) {
-      throw new Error("No data found for the specified condition.");
+      return null;
     }
     return new this(data);
   }
@@ -115,7 +141,11 @@ export class BaseModel<T extends Record<string, any>>
     return this;
   }
 
-  static async bulkUpdate<D extends Record<string, any>>(
+  static async bulkUpdate<
+    D extends Record<string, any>,
+    T extends BaseModel<D>
+  >(
+    this: (new (data: D) => T) & BaseModelType<D>,
     condition: Record<string, any> | PKType,
     updateData: Record<string, any>
   ) {
@@ -203,37 +233,3 @@ export class TenantBaseModel<
       : `${this.getTenantSchema()}.${this.tableName}`;
   }
 }
-
-// export type Constructor<T> = new (...args: any[]) => T;
-
-// export function tenantClassMixin<T extends Constructor<{}>>(baseClass: T) {
-//   return class extends baseClass {
-//     static asyncLocalStorage = asyncLocalStorage;
-//     static tableName: string;
-//     static storeSchemaKey: string = "tenantSchema";
-//     static get store(): Map<string, any> {
-//       const store = this.asyncLocalStorage.getStore();
-//       if (!store) {
-//         throw new Error("Store not found.");
-//       }
-//       return store;
-//     }
-
-//     static getTenantSchema(): string {
-//       // Not adding default value to the tenantSchema key to avoid accidental data leakage. Using TenantModelMixin and setting tenantSchema is mandatory.
-//       const schema = this.store.get(this.storeSchemaKey);
-//       if (!schema) {
-//         throw new Error(
-//           "Tenant schema not found. Set 'tenantSchema' in the store."
-//         );
-//       }
-//       return schema;
-//     }
-
-//     static getTenisedTableName(): string {
-//       return knexClient == "sqlite3"
-//         ? this.tableName
-//         : `${this.getTenantSchema()}.${this.tableName}`;
-//     }
-//   };
-// }

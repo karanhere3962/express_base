@@ -1,48 +1,56 @@
 import { BaseModel, TenantBaseModel } from "../../base/model";
 import { z } from "zod";
 import { UserSchema, TenantUserSchema } from "./schemas";
-import { applyMixins } from "../../utils";
+import { ClientFacingError, applyMixins } from "../../utils";
+import bcrypt from "bcrypt";
 
 export type UserType = z.infer<typeof UserSchema>;
 export type TenantUserType = z.infer<typeof TenantUserSchema>;
 
-// export function userClassMixin<
-//   D extends Record<string, any>,
-//   T extends Constructor<BaseModel<D>>
-// >(baseClass: T) {
-//   return class extends baseClass {
-//     static tableName = "users";
-//     static pkKey = "id";
-//     static serializerFields: string[] = [
-//       "id",
-//       "name",
-//       "email",
-//       "display_picture",
-//       "user_type",
-//       "permissions",
-//       "created_at",
-//       "updated_at",
-//     ];
+export class UserBase<
+  T extends UserType | TenantUserType
+> extends BaseModel<T> {
+  public isAuthenticated: boolean;
 
-//     static async authenticateUser(email: string, password: string) {
-//       const user = await this.get({ email });
-//       if (!user) {
-//         throw new Error("User not found.");
-//       }
-//       if (user.data.password !== password) {
-//         throw new Error("Invalid password.");
-//       }
-//       return user;
-//     }
-//   };
-// }
+  constructor(initValues: T) {
+    super(initValues);
+    this.isAuthenticated = false;
+  }
 
-export class User extends BaseModel<UserType> {
-  static validationSchema = UserSchema;
+  static async authenticateUser(email: string, password: string) {
+    const user = await this.get({ email });
+    const authError = new ClientFacingError(
+      "Email or password is incorrect.",
+      "AUTH:INVALID_CREDENTIALS",
+      401
+    );
+    if (!user) {
+      throw authError;
+    }
+
+    const passwordMatch = await bcrypt.compare(
+      password,
+      user.data.password_hash
+    );
+    if (!passwordMatch) {
+      throw authError;
+    }
+    user.isAuthenticated = true;
+    return user;
+  }
 }
 
-export class TenantUser extends TenantBaseModel<TenantUserType> {
+export class User extends UserBase<UserType> {
+  static validationSchema = UserSchema;
+}
+export class TenantUser extends UserBase<TenantUserType> {
   static validationSchema = TenantUserSchema;
 }
 
-applyMixins(TenantUser, [User]);
+applyMixins(TenantUser, [TenantBaseModel<TenantUserType>]);
+
+let user;
+User.authenticateUser("email", "password").then((user) => {
+  user = user;
+  user.isAuthenticated = true;
+});

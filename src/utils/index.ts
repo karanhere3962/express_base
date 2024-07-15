@@ -29,3 +29,13 @@ export function applyMixins(derivedCtor: any, constructors: any[]) {
     });
   });
 }
+
+export class ClientFacingError extends Error {
+  constructor(
+    message: string,
+    public errorCode: string,
+    public statusCode: number
+  ) {
+    super(message);
+  }
+}
