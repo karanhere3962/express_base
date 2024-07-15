@@ -3,7 +3,7 @@ import * as path from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import knexConfig from "../../knexfile";
-import { commonConfig, logger, getTenantSchemaNames } from "../setup";
+import { commonConfig, logger, getTenantSchemaNames, db } from "../setup";
 import { execSync } from "child_process";
 
 // Define interfaces for the command line arguments
@@ -88,12 +88,13 @@ exports.down = async (knex: Knex) => {
 // TODO: write rollback here
 return knex.schema.withSchema(tenantSchema)
 };`;
-export function generateMigrationScript({
+export async function generateMigrationScript({
   name,
   env,
   schema,
   type,
 }: MigrationMakeArgs) {
+  await db.raw(`CREATE SCHEMA IF NOT EXISTS "knex_migrations";`);
   if (!name) {
     throw new Error("Please provide a migration name.");
   }
@@ -140,29 +141,28 @@ export function runMigrationFor(
 ) {
   const type = getLastDirectoryName(migrationDirectory);
   const knexMigrationTable = getKnexMigrationTableName(env, schema, type);
-  logger.debug("Running migrations for schema:", schema);
-  logger.debug("Migration directory:", migrationDirectory);
-  logger.debug("Migration table:", knexMigrationTable);
-  logger.debug("Type:", type);
 
   if (!fs.existsSync(migrationDirectory)) {
     fs.mkdirSync(migrationDirectory, { recursive: true });
     logger.debug(`Directory created: ${migrationDirectory}`);
   }
-
-  execSync(
-    `npx knex migrate:latest --env ${env} --migrations-directory ${migrationDirectory} --migrations-table-name ${knexMigrationTable}`,
-    {
-      env: {
-        ...process.env,
-        TENANT_SCHEMA: schema,
-        NODE_ENV: env,
-      },
-    }
-  );
+  const migrationCommand = `npx knex migrate:latest --env ${env} --migrations-directory ${migrationDirectory} --migrations-table-name ${knexMigrationTable}`;
+  execSync(migrationCommand, {
+    env: {
+      ...process.env,
+      TENANT_SCHEMA: schema,
+      NODE_ENV: env,
+    },
+  });
+  logger.debug(`Migrations run for command: ${migrationCommand}`);
 }
 
-export function runMigrations({ env, type, schema }: MigrationsMigrateArgs) {
+export async function runMigrations({
+  env,
+  type,
+  schema,
+}: MigrationsMigrateArgs) {
+  await db.raw(`CREATE SCHEMA IF NOT EXISTS "knex_migrations";`);
   const environmentConfig = knexConfig[env];
   if (!environmentConfig) {
     logger.error(`No knex configuration found for environment: ${env}`);
@@ -236,7 +236,7 @@ if (require.main === module) {
         env: argv.env,
         schema: argv.schema,
         type: argv.type,
-      });
+      }).then(() => db.destroy());
       break;
     case "migrate":
       // Run migrations
@@ -244,7 +244,7 @@ if (require.main === module) {
         env: argv.env,
         schema: argv.schema,
         type: argv.type,
-      });
+      }).then(() => db.destroy());
       break;
     default:
       logger.error(

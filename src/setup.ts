@@ -42,6 +42,7 @@ export const pgConnectionConfig: Knex.PgConnectionConfig = {
 export const commonConfig = {
   migrations: {
     tableName: "knex_migrations",
+    schemaName: "knex_migrations",
     directory: path.resolve(base_dir, "src", "database", "migrations"),
   },
   seeds: {

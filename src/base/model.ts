@@ -6,23 +6,39 @@ import { validateAndSanitize } from "../utils/validator";
 // To Add: static validate method which will make the validation package agnostic
 
 export interface BaseModelConstructor<D extends Record<string, any>> {
-  new (initValues: D): BaseModel<D>;
-  validationSchema: ZodSchema<D>;
-  updateValidationSchema: ZodSchema<Record<string, any>>;
-  serializerFields: string[];
-  tableName: string;
-  pkKey: string;
-  getTenisedTableName: () => string;
-  kSelect: (
-    condition: Record<string, any>,
-    selectableFields?: any
-  ) => Knex.QueryBuilder;
-  getUpdateValidationSchema: () => ZodSchema<Record<string, any>>;
+  // new (initValues: D): void;
+  // validationSchema: ZodSchema<D>;
+  // updateValidationSchema: ZodSchema<Record<string, any>>;
+  // serializerFields: string[];
+  // tableName: string;
+  // pkKey: string;
+  data: D;
+  // getTenisedTableName: () => string;
+  // kSelect: (
+  //   condition: Record<string, any>,
+  //   selectableFields?: any
+  // ) => Knex.QueryBuilder;
+  // getUpdateValidationSchema: () => ZodSchema<Record<string, any>>;
+  // create: <C extends BaseModel<D>>(data: D) => Promise<C>;
+  // bulkCreate: <C extends BaseModel<D>>(data: D[]) => Promise<C[]>;
+  // get: <C extends new (...args: any[]) => BaseModel<D>>(
+  //   condition: Record<string, any> | PKType
+  // ) => Promise<C>;
+  // update: <C extends BaseModel<D>>(
+  //   condition: Record<string, any> | PKType,
+  //   updateData: Record<string, any>
+  // ) => Promise<C>;
+  // bulkUpdate: <C extends BaseModel<D>>(
+  //   condition: Record<string, any> | PKType,
+  //   updateData: Record<string, any>
+  // ) => Promise<C[]>;
 }
 
 export type PKType = number | string;
 
-export class BaseModel<T extends Record<string, any>> {
+export class BaseModel<T extends Record<string, any>>
+  implements BaseModelConstructor<T>
+{
   static validationSchema: ZodSchema<any>;
   static updateValidationSchema: ZodSchema<any>;
   static tableName: string;
@@ -56,14 +72,7 @@ export class BaseModel<T extends Record<string, any>> {
     );
   }
 
-  static async create<D extends Record<string, any>, C extends BaseModel<D>>(
-    this: {
-      new (initValues: D): C;
-      validationSchema: ZodSchema<D>;
-      getTenisedTableName: () => string;
-    },
-    data: D
-  ): Promise<C> {
+  static async create<D extends Record<string, any>>(data: D) {
     const validatedData = validateAndSanitize(data, this.validationSchema);
     const createdData: D = (
       await getKnex()(this.getTenisedTableName()).insert(validatedData, "*")
@@ -71,20 +80,12 @@ export class BaseModel<T extends Record<string, any>> {
     return new this(createdData);
   }
 
-  static async bulkCreate<
-    D extends Record<string, any>,
-    C extends BaseModel<D>
-  >(
-    this: {
-      new (initValues: D): C;
-    } & BaseModelConstructor<D>,
-    data: D[]
-  ): Promise<C[]> {
-    const validatedData: D[] = validateAndSanitize(
+  static async bulkCreate<T extends Record<string, any>>(data: T[]) {
+    const validatedData: T[] = validateAndSanitize(
       data,
       z.array(this.validationSchema)
     );
-    const insertedData: D[] = await getKnex()(
+    const insertedData: T[] = await getKnex()(
       this.getTenisedTableName()
     ).insert(validatedData, "*");
     return insertedData.map((element) => new this(element));
@@ -103,22 +104,16 @@ export class BaseModel<T extends Record<string, any>> {
     return query;
   }
 
-  static async select<D extends Record<string, any>, C extends BaseModel<D>>(
-    this: {
-      new (initValues: D): C;
-    } & BaseModelConstructor<D>,
+  static async select<D extends Record<string, any>>(
     condition: Record<string, any> = {}
-  ): Promise<C[]> {
+  ) {
     const data: Record<string, any>[] = await this.kSelect(condition);
     return data.map((element) => new this(element as D));
   }
 
-  static async get<D extends Record<string, any>, C extends BaseModel<D>>(
-    this: {
-      new (initValues: D): C;
-    } & BaseModelConstructor<D>,
+  static async get<D extends Record<string, any>>(
     condition: Record<string, any> | PKType
-  ): Promise<C> {
+  ) {
     if (typeof condition === "number" || typeof condition === "string") {
       condition = { [this.pkKey]: condition };
     }
@@ -129,35 +124,26 @@ export class BaseModel<T extends Record<string, any>> {
     return new this(data);
   }
 
-  async update<
-    D extends Record<string, any>,
-    C extends BaseModelConstructor<D>
-  >(data: D): Promise<InstanceType<C>> {
-    const instanceClass = this.constructor as C;
+  async update<D extends Record<string, any>, C extends BaseModel<D>>(data: D) {
+    const instanceClass = this.constructor as typeof BaseModel;
     if (instanceClass.pkKey in data) {
       throw new Error("Primary key cannot be updated.");
     }
     const updateValidationSchema = instanceClass.getUpdateValidationSchema();
     const validatedData = validateAndSanitize(data, updateValidationSchema);
     const updatedData: D = (
-      await getKnex()((this.constructor as C).getTenisedTableName())
+      await getKnex()(instanceClass.getTenisedTableName())
         .where({ [instanceClass.pkKey]: this.data[instanceClass.pkKey] })
         .update(validatedData, "*")
     )[0];
     Object.assign(this.data, updatedData);
-    return this as InstanceType<C>;
+    return this;
   }
 
-  static async bulkUpdate<
-    D extends Record<string, any>,
-    C extends BaseModel<D>
-  >(
-    this: {
-      new (initValues: D): C;
-    } & BaseModelConstructor<D>,
+  static async bulkUpdate<D extends Record<string, any>>(
     condition: Record<string, any> | PKType,
     updateData: Record<string, any>
-  ): Promise<C[]> {
+  ) {
     if (typeof condition === "number" || typeof condition === "string") {
       condition = { [this.pkKey]: condition };
     }

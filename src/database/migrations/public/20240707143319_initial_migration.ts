@@ -8,7 +8,8 @@ exports.up = async (knex: Knex) => {
   // TODO: write migration here
   await knex.raw('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
   await knex.raw('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-  await knex.raw('CREATE EXTENSION IF NOT EXISTS "pg_cron"');
+
+  // await knex.raw('CREATE EXTENSION IF NOT EXISTS "pg_cron"');
   return knex.schema.withSchema(tenantSchema);
 };
 
