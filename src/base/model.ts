@@ -6,30 +6,30 @@ import { validateAndSanitize } from "../utils/validator";
 // To Add: static validate method which will make the validation package agnostic
 
 export type BaseModelType<D extends Record<string, any>> = {
-  new (initValues: D): BaseModel<D>;
-  validationSchema: ZodSchema<D>;
-  updateValidationSchema: ZodSchema<Record<string, any>>;
-  serializerFields: string[];
-  tableName: string;
-  pkKey: string;
-  getTenisedTableName: () => string;
-  kSelect: (
-    condition: Record<string, any>,
-    selectableFields?: any
-  ) => Knex.QueryBuilder;
-  getUpdateValidationSchema: () => ZodSchema<Record<string, any>>;
-  create: <C extends BaseModel<D>>(data: D) => Promise<C>;
-  bulkCreate: <C extends BaseModel<D>>(data: D[]) => Promise<C[]>;
-  get: <C extends BaseModel<D>>(
-    condition: Record<string, any> | PKType
-  ) => Promise<C | null>;
-  bulkUpdate: <C extends BaseModel<D>>(
-    condition: Record<string, any> | PKType,
-    updateData: Record<string, any>
-  ) => Promise<C[]>;
+  // new (initValues: D): BaseModel<D>;
+  // validationSchema: ZodSchema<D>;
+  // updateValidationSchema: ZodSchema<Record<string, any>>;
+  // serializerFields: string[];
+  // tableName: string;
+  // pkKey: string;
+  // getTenisedTableName: () => string;
+  // kSelect: (
+  //   condition: Record<string, any>,
+  //   selectableFields?: any
+  // ) => Knex.QueryBuilder;
+  // getUpdateValidationSchema: () => ZodSchema<Record<string, any>>;
+  // bulkCreate: <C extends BaseModel<D>>(data: D[]) => Promise<C[]>;
+  // get: <C extends BaseModel<D>>(
+  //   condition: Record<string, any> | PKType
+  // ) => Promise<C | null>;
+  // bulkUpdate: <C extends BaseModel<D>>(
+  //   condition: Record<string, any> | PKType,
+  //   updateData: Record<string, any>
+  // ) => Promise<C[]>;
 };
 
 export type PKType = number | string;
+export interface Data extends Record<string, any> {}
 
 export class BaseModel<T extends Record<string, any>> {
   static validationSchema: ZodSchema<any>;
@@ -65,21 +65,15 @@ export class BaseModel<T extends Record<string, any>> {
     );
   }
 
-  static async create<D extends Record<string, any>, T extends BaseModel<D>>(
-    this: (new (data: D) => T) & BaseModelType<D>,
-    data: D
-  ) {
-    const validatedData = validateAndSanitize(data, this.validationSchema);
+  static async create<D extends Record<string, any>>(data: D) {
+    const validatedData = validateAndSanitize<D>(data, this.validationSchema);
     const createdData: D = (
       await getKnex()(this.getTenisedTableName()).insert(validatedData, "*")
     )[0];
     return new this(createdData);
   }
 
-  static async bulkCreate<
-    D extends Record<string, any>,
-    T extends BaseModel<D>
-  >(this: (new (data: D) => T) & BaseModelType<D>, data: D[]) {
+  static async bulkCreate<D extends Record<string, any>>(data: D[]) {
     const validatedData: D[] = validateAndSanitize(
       data,
       z.array(this.validationSchema)
@@ -103,22 +97,22 @@ export class BaseModel<T extends Record<string, any>> {
     return query;
   }
 
-  static async select<D extends Record<string, any>, T extends BaseModel<D>>(
-    this: (new (data: D) => T) & BaseModelType<D>,
-    condition: Record<string, any> = {}
-  ) {
+  static async select<
+    D extends Record<string, any>,
+    T extends typeof BaseModel = typeof BaseModel
+  >(this: T, condition: Record<string, any> = {}) {
     const data: Record<string, any>[] = await this.kSelect(condition);
     return data.map((element) => new this(element as D));
   }
 
-  static async get<D extends Record<string, any>, T extends BaseModel<D>>(
-    this: (new (data: D) => T) & BaseModelType<D>,
+  static async get<T extends BaseModel<Data>>(
+    this: (new (data: Data) => T) & typeof BaseModel,
     condition: Record<string, any> | PKType
-  ) {
+  ): Promise<T | null> {
     if (typeof condition === "number" || typeof condition === "string") {
       condition = { [this.pkKey]: condition };
     }
-    const data: D = await this.kSelect(condition).first();
+    const data: Data = await this.kSelect(condition).first();
     if (!data) {
       return null;
     }

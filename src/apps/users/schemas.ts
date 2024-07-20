@@ -22,7 +22,7 @@ export const TenantPermissionsSchema = z.object({
 });
 
 export const BaseUserSchema = {
-  id: z.string().uuid().optional(),
+  id: z.string().uuid(),
   name: z.string().max(100),
   email: z.string().email().max(100),
   password_hash: z.string().max(128),
@@ -43,3 +43,18 @@ export const TenantUserSchema = z.object({
   permissions: TenantPermissionsSchema,
   user_type: z.enum(TenantUserTypes).default("user"),
 });
+
+export const UserCreateSchema = z
+  .object({
+    password: z.string().min(4),
+    confirmPassword: z.string(),
+  })
+  .merge(
+    z
+      .object(BaseUserSchema)
+      .pick({ name: true, email: true, display_picture: true })
+  )
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });

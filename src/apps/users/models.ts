@@ -1,5 +1,5 @@
-import { BaseModel, TenantBaseModel } from "../../base/model";
-import { z } from "zod";
+import { BaseModel, BaseModelType, TenantBaseModel } from "../../base/model";
+import { z, ZodSchema } from "zod";
 import { UserSchema, TenantUserSchema } from "./schemas";
 import { ClientFacingError, applyMixins } from "../../utils";
 import bcrypt from "bcrypt";
@@ -17,8 +17,18 @@ export class UserBase<
     this.isAuthenticated = false;
   }
 
-  static async authenticateUser(email: string, password: string) {
-    const user = await this.get({ email });
+  static async create<D extends Record<string, any>>(
+    data: D & (UserType | TenantUserType)
+  ) {
+    data.password_hash = await bcrypt.hash(data.password_hash, 10);
+    return super.create(data);
+  }
+
+  static async login<
+    U extends UserType | TenantUserType,
+    T extends UserBase<U>
+  >(email: string, password: string) {
+    const user = await super.get<T>({ email });
     const authError = new ClientFacingError(
       "Email or password is incorrect.",
       "AUTH:INVALID_CREDENTIALS",
@@ -49,8 +59,10 @@ export class TenantUser extends UserBase<TenantUserType> {
 
 applyMixins(TenantUser, [TenantBaseModel<TenantUserType>]);
 
-let user;
-User.authenticateUser("email", "password").then((user) => {
-  user = user;
-  user.isAuthenticated = true;
-});
+async function main() {
+  const user = await User.create({
+    email: "karan.c@cumulations.com",
+    name: "karan",
+    pass,
+  });
+}
