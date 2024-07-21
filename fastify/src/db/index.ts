@@ -7,20 +7,38 @@ import {
   OptionalId,
   OptionalUnlessRequiredId,
 } from "mongodb";
-import { InternalError } from "../base/errors";
+import {
+  should_init_mongo_connection,
+  mongo_uri,
+  mongo_db_name,
+  mongo_client_options,
+} from "../config";
+import { ClientFacingError, InternalError } from "../errors";
+import errorCodes from "../errors/codes";
 
-type InputType<T extends Record<string, any>> = T & {
+export type InputType<T extends Record<string, any>> = T & {
   id?: string;
 };
 
-type OutputType<T extends Record<string, any>> = T & {
+export type OutputType<T extends Record<string, any>> = T & {
   id: string;
 };
 
-class BaseMongoModel<T extends Record<string, any>> {
+export class BaseMongoModel<T extends Record<string, any>> {
   static collectionName: string;
   static _client: MongoClient | null = null;
   static _db: Db | null = null;
+  static collectionIndexes: Record<string, any>;
+  static indexes = [];
+  static validationSchema = {};
+
+  constructor() {
+    // For testing child classes, set process.env.SHOULD_INIT_MONGO_CONNECTION to "FALSE" (default is "TRUE"), then import BaseMongoModel, set mock values for static attributes '_client' and '_db' in BaseMongoModel. Once done, import child classes and proceed with tests.
+    if (!this._class()._client || !this._class()._db)
+      throw new InternalError("Connection not initialized.");
+
+    this.ensureValidationSchema().then(async () => await this.ensureIndexes());
+  }
 
   static async connect({
     uri,
@@ -64,7 +82,6 @@ class BaseMongoModel<T extends Record<string, any>> {
         "DB connection not initialized. Use 'connect' method first to initliaize connection."
       );
     }
-    console.log("This is it: ", this._class().collectionName);
     return this._class()._db as Db;
   }
 
@@ -79,9 +96,27 @@ class BaseMongoModel<T extends Record<string, any>> {
     return this.db.collection<T>(this._class().collectionName);
   }
 
+  async ensureIndexes() {
+    if (this._class().indexes)
+      await this.collection.createIndexes(this._class().indexes);
+  }
+
+  async ensureValidationSchema() {
+    if (this._class().validationSchema) {
+      this.collection;
+      await this._class()._db?.command(this._class().validationSchema);
+    }
+  }
+
   parseSingleInput(inputData: Partial<InputType<T>>) {
-    let parsedInput = inputData as Record<string, any>;
+    let parsedInput = { ...inputData } as Record<string, any>;
     if ("id" in inputData) {
+      if (!ObjectId.isValid(String(inputData.id))) {
+        throw new ClientFacingError(
+          `Got invalid 'id' : ${inputData.id}.`,
+          errorCodes.BAD_REQUEST_400
+        );
+      }
       parsedInput._id = new ObjectId(inputData.id);
       delete parsedInput.id;
     }
@@ -94,7 +129,7 @@ class BaseMongoModel<T extends Record<string, any>> {
 
   parseSingleOutput(outputData: WithId<T> | null) {
     if (!outputData) return null;
-    const parsedOutput = outputData as Record<string, any>;
+    const parsedOutput = { ...outputData } as Record<string, any>;
     parsedOutput.id = String(outputData._id);
     delete parsedOutput._id;
 
@@ -115,6 +150,17 @@ class BaseMongoModel<T extends Record<string, any>> {
     );
   }
 
+  async getOr404(conditions: Partial<InputType<T>>) {
+    const obj = await this.findOne(conditions);
+    if (!obj) {
+      throw new ClientFacingError(
+        `No match for filter ${JSON.stringify(conditions)}.`,
+        errorCodes.NOT_FOUND_404
+      );
+    }
+    return obj;
+  }
+
   async find(conditions: Partial<InputType<T>> = Object()) {
     const parsedInput = this.parseSingleInput(conditions);
     return this.parseOutput(
@@ -126,7 +172,6 @@ class BaseMongoModel<T extends Record<string, any>> {
     const insertedData = await this.collection.insertOne(
       data as OptionalUnlessRequiredId<T>
     );
-    console.log("InsertedData: ", insertedData);
     return this.parseSingleOutput(data as WithId<T>);
   }
 
@@ -134,69 +179,13 @@ class BaseMongoModel<T extends Record<string, any>> {
     const insertedData = await this.collection.insertMany(
       data as OptionalUnlessRequiredId<T>[]
     );
-    console.log("InsertedData: ", insertedData);
     return this.parseOutput(data as WithId<T>[]);
   }
 }
 
-const url = "mongodb://localhost:27017";
-
-type UserType = {
-  name: string;
-  email: string;
-  age: number;
-};
-
-class UserService extends BaseMongoModel<UserType> {
-  static collectionName: string = "testUser";
-}
-
-UserService.connect({
-  uri: url,
-  dbName: "htv_demo",
-}).then(async () => {
-  const userService = new UserService();
-  const user = await userService.findOne({
-    id: "669b89a4ca0f3a6c56e1e1ec",
+if (should_init_mongo_connection)
+  BaseMongoModel.connect({
+    uri: mongo_uri,
+    dbName: mongo_db_name,
+    clientOptions: mongo_client_options,
   });
-  const users = await userService.find();
-  // if (!user || !users) {
-  //   console.log("User: ", user);
-  //   console.log("Users: ", users);
-
-  //   UserService.disconnect();
-  //   return;
-  // }
-  console.log(user);
-  console.log(users);
-  await userService.insertOne({
-    name: "Krishna",
-    email: "k.c@c.com",
-    age: 19,
-  });
-  const newUser = await userService.insertMany([
-    {
-      name: "Krishna",
-      email: "k.c@c.com",
-      age: 19,
-    },
-    {
-      name: "Krishna1",
-      email: "k.c1@c.com",
-      age: 19,
-    },
-    {
-      name: "Krishna1",
-      email: "k.c1@c.com",
-      age: 19,
-    },
-    {
-      name: "Krishna1",
-      email: "k.c1@c.com",
-      age: 19,
-    },
-  ]);
-  await userService.collection.deleteOne();
-  console.log(newUser);
-  UserService.disconnect();
-});

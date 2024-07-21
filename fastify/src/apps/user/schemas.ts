@@ -27,4 +27,4 @@ export const UserUpdateSchema = UserSchema.pick({
   name: true,
   email: true,
   displayPicture: true,
-});
+}).partial();

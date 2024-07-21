@@ -1,0 +1,1 @@
+import { BaseMongoModel } from "../../db";

@@ -15,8 +15,12 @@ dotenv.config({
 });
 
 // Database
-export const DB_HOST = process.env.DB_HOST as string;
-export const DB_NAME = process.env.DB_NAME as string;
-export const DB_USER = process.env.DB_USER as string;
-export const DB_PASSWORD = process.env.DB_PASSWORD as string;
-export const DB_PORT = parseInt(process.env.DB_PORT || "5432");
+
+export const should_init_mongo_connection =
+  (process.env.SHOULD_INIT_MONGO_CONNECTION || "TRUE") == "TRUE";
+export const mongo_uri = process.env.MONGO_URI || "";
+export const mongo_db_name = process.env.MONGO_DB_NAME || "";
+export const mongo_client_options = {
+  minPoolSize: parseInt(process.env.MONGO_MIN_POOLSIZE || "1"),
+  maxPoolSize: parseInt(process.env.MONGO_MAX_POOLSIZE || "10"),
+};
