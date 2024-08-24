@@ -1,0 +1,46 @@
+version: "3.9"
+services:
+  htv_mongo:
+    image: mongo:4.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - htv-network
+
+  htv_api:
+    build: .
+    command: "yarn dev"
+    ports:
+      - "${FASTIFY_PORT}:${FASTIFY_PORT}"
+    environment:
+      DOCKER_MONGO_URI: "mongodb://htv_mongo:27017"
+      DOCKER_PORT: ${FASTIFY_PORT}
+    depends_on:
+      htv_mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${FASTIFY_PORT}/ || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - htv-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/dist
+
+volumes:
+  mongo-data:
+
+networks:
+  htv-network:

@@ -1,0 +1,50 @@
+{
+  "containerDefinitions": [
+    {
+      "name": "my-rest-api",
+      "image": "$CONTAINER_IMAGE",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "MONGO_MIN_POOLSIZE",
+          "value": "1"
+        },
+        {
+          "name": "MONGO_MAX_POOLSIZE",
+          "value": "10"
+        },
+        {
+          "name": "MONGO_DB_NAME",
+          "value": "htv_demo"
+        }
+      ],
+      "secrets": [
+      {
+        "name": "MONGO_URI",
+        "valueFrom": "arn:aws:secretsmanager:eu-central-1:$AWS_ACCOUNT_ID:secret:tpvision/htv-demo-mongo-Jmko6u:mongo_url::"
+      }
+    ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      }
+
+    }
+  ],
+  "family": "$ECS_TASK_DEFINITION_NAME",
+  "executionRoleArn": "arn:aws:iam::$AWS_ACCOUNT_ID:role/ecs_task_execution",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "1024"
+}

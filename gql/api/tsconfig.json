@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "lib": ["esnext", "dom"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "moduleResolution": "Node",
+    "sourceMap": true
+  },
+  "include": ["./**/*"],
+  "exclude": ["node_modules", "dist", "src/localScripts", "eslint.config.mjs"]
+}

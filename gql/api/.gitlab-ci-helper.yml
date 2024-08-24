@@ -1,0 +1,40 @@
+default:
+  image: node:18.17-bullseye
+  # tags:
+  #   - t2d
+
+.service_test:
+  variables:
+    KUBERNETES_CPU_REQUEST: "8"
+    KUBERNETES_CPU_LIMIT: "8"
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+  tags:
+    - $GITLAB_RUNNER_LARGE
+
+.service_prepare:
+  variables:
+    KUBERNETES_CPU_REQUEST: "6"
+    KUBERNETES_CPU_LIMIT: "6"
+    KUBERNETES_MEMORY_REQUEST: 12Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+
+.service_build:
+  extends: .kaniko
+  variables:
+    KUBERNETES_CPU_REQUEST: "8"
+    KUBERNETES_CPU_LIMIT: "8"
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+  script:
+    - mv out-$SERVICE_NAME/ out/
+    - DOCKER_IMAGE_TAG=$(eval echo $DOCKER_IMAGE_TAG)
+    - /kaniko/executor
+        --context "${CI_PROJECT_DIR}"
+        --dockerfile "${CI_PROJECT_DIR}/${SERVICE_NAME}/service/Dockerfile"
+        --build-arg=GITLAB_NPM_TOKEN=${GITLAB_NPM_TOKEN}
+        --destination ${CI_REGISTRY_IMAGE}/$DOCKER_IMAGE:$DOCKER_IMAGE_TAG
+
+.service_deploy:
+  extends: .ecs-deploy
+

@@ -58,11 +58,3 @@ export class TenantUser extends UserBase<TenantUserType> {
 }
 
 applyMixins(TenantUser, [TenantBaseModel<TenantUserType>]);
-
-async function main() {
-  const user = await User.create({
-    email: "karan.c@cumulations.com",
-    name: "karan",
-    pass,
-  });
-}
